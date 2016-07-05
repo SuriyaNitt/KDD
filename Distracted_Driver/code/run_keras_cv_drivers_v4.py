@@ -1,5 +1,9 @@
 # -*- coding: utf-8 -*-
 
+'''
+Copyright 2016 Suriya Narayanan L
+'''
+
 import numpy as np
 import shutil
 
@@ -354,7 +358,7 @@ def load_partial_weights(model, file_path):
             print k
             layer_count += 1
 
-            if layer_count > (len(flattened_layers) -2):
+            if layer_count >= len(flattened_layers):
                 continue
             g = f[name]
             weight_names = [n.decode('utf8') for n in g.attrs['weight_names']]
@@ -364,7 +368,7 @@ def load_partial_weights(model, file_path):
                     for weight_value in weight_values:
                         print('Weight value name: {}'.format(weight_value))
                         print('Weight value shape: {}'.format(weight_value.shape))
-                if model_k > len(flattened_layers):
+                if model_k >= len(flattened_layers):
                     continue
                 layer = flattened_layers[model_k]
                 print('model_layer: {}, saved_layer: {}'.format(layer.name, name))
@@ -505,45 +509,45 @@ def vgg_std16_model(img_rows, img_cols, color_type=1):
     model = Sequential()
     model.add(ZeroPadding2D((1, 1), input_shape=(color_type,
                                                  img_rows, img_cols)))
-    model.add(Convolution2D(64, 3, 3, activation='relu', trainable=False))
+    model.add(Convolution2D(64, 3, 3, activation='relu'))
     model.add(ZeroPadding2D((1, 1)))
-    model.add(Convolution2D(64, 3, 3, activation='relu', trainable=False))
+    model.add(Convolution2D(64, 3, 3, activation='relu'))
     model.add(MaxPooling2D((2, 2), strides=(2, 2)))
 
     model.add(ZeroPadding2D((1, 1)))
-    model.add(Convolution2D(128, 3, 3, activation='relu', trainable=False))
+    model.add(Convolution2D(128, 3, 3, activation='relu'))
     model.add(ZeroPadding2D((1, 1)))
-    model.add(Convolution2D(128, 3, 3, activation='relu', trainable=False))
+    model.add(Convolution2D(128, 3, 3, activation='relu'))
     model.add(MaxPooling2D((2, 2), strides=(2, 2)))
 
     model.add(ZeroPadding2D((1, 1)))
-    model.add(Convolution2D(256, 3, 3, activation='relu', trainable=False))
+    model.add(Convolution2D(256, 3, 3, activation='relu'))
     model.add(ZeroPadding2D((1, 1)))
-    model.add(Convolution2D(256, 3, 3, activation='relu', trainable=False))
+    model.add(Convolution2D(256, 3, 3, activation='relu'))
     model.add(ZeroPadding2D((1, 1)))
-    model.add(Convolution2D(256, 3, 3, activation='relu', trainable=False))
+    model.add(Convolution2D(256, 3, 3, activation='relu'))
     model.add(MaxPooling2D((2, 2), strides=(2, 2)))
 
     model.add(ZeroPadding2D((1, 1)))
-    model.add(Convolution2D(512, 3, 3, activation='relu', trainable=False))
+    model.add(Convolution2D(512, 3, 3, activation='relu'))
     model.add(ZeroPadding2D((1, 1)))
-    model.add(Convolution2D(512, 3, 3, activation='relu', trainable=False))
+    model.add(Convolution2D(512, 3, 3, activation='relu'))
     model.add(ZeroPadding2D((1, 1)))
-    model.add(Convolution2D(512, 3, 3, activation='relu', trainable=False))
+    model.add(Convolution2D(512, 3, 3, activation='relu'))
     model.add(MaxPooling2D((2, 2), strides=(2, 2)))
 
     model.add(ZeroPadding2D((1, 1)))
-    model.add(Convolution2D(512, 3, 3, activation='relu', trainable=False))
+    model.add(Convolution2D(512, 3, 3, activation='relu'))
     model.add(ZeroPadding2D((1, 1)))
-    model.add(Convolution2D(512, 3, 3, activation='relu', trainable=False))
+    model.add(Convolution2D(512, 3, 3, activation='relu'))
     model.add(ZeroPadding2D((1, 1)))
-    model.add(Convolution2D(512, 3, 3, activation='relu', trainable=False))
+    model.add(Convolution2D(512, 3, 3, activation='relu'))
     model.add(MaxPooling2D((2, 2), strides=(2, 2)))
 
     model.add(Flatten())
-    model.add(Dense(4096, activation='relu', trainable=False))
+    model.add(Dense(4096, activation='relu'))
     model.add(Dropout(0.5))
-    model.add(Dense(4096, activation='relu', trainable=False))
+    model.add(Dense(4096, activation='relu'))
     model.add(Dropout(0.5))
     #model.add(Dense(1000, activation='softmax'))
 
@@ -552,20 +556,15 @@ def vgg_std16_model(img_rows, img_cols, color_type=1):
 
     # Code above loads pre-trained data and
     #model.layers.pop()
-    model.add(Dense(10, trainable=True))
-    model.add(Activation('softmax'))
+    model.add(Dense(10, activation='softmax'))
     # Learning rate is changed to 0.001
 
     #model.load_weights('/home/suriya/Documents/Kaggle/KDD/Distracted_Driver/code/pretrained/weight.h5')
-    load_partial_weights(model,
-                         '/home/suriya/Documents/Kaggle/KDD/Distracted_Driver/code/pretrained/weight_first_try.h5')
-    #load_partial_weights(model,
-    #                     '/home/suriya/Documents/Kaggle/KDD/Distracted_Driver/code/pretrained/weight_check.h5')
+    load_partial_weights(model, '/home/suriya/Documents/Kaggle/KDD/Distracted_Driver/code/pretrained/weight.h5')
     model.layers.pop()
 
     sgd = SGD(lr=1e-3, decay=1e-6, momentum=0.9, nesterov=True)
-    adam = Adam(lr=1e-3)
-    model.compile(optimizer=adam, loss='categorical_crossentropy')
+    model.compile(optimizer=sgd, loss='categorical_crossentropy')
     return model
 
 def get_validation_predictions(train_data, predictions_valid):
@@ -581,7 +580,7 @@ def run_cross_validation(nfolds=10):
     # color type: 1 - grey, 3 - rgb
     color_type_global = 3
     batch_size = 3200
-    nb_epoch = 2
+    nb_epoch = 4
     random_state = 51
     restore_from_last_checkpoint = 0
     model_version = 1
@@ -599,13 +598,13 @@ def run_cross_validation(nfolds=10):
         model = create_model_v2(img_rows, img_cols, color_type_global)
 
     kf = KFold(len(unique_drivers), n_folds=nfolds, shuffle=True, random_state=random_state)
-
     num_fold = 0
     sum_score = 0
+    prev_score = 0
+    patience_count = 0
 
+    '''
     for train_drivers, test_drivers in kf:
-        prev_score = 10000
-        patience_count = 0
         unique_list_train = [unique_drivers[i] for i in train_drivers]
         y_train_global, train_index = copy_selected_drivers(train_target, driver_id, unique_list_train)
         unique_list_valid = [unique_drivers[i] for i in test_drivers]
@@ -620,62 +619,64 @@ def run_cross_validation(nfolds=10):
         print('Test drivers: ', unique_list_valid)
 
         kfold_weights_path = os.path.join('cache', 'weights_kfold_' + str(num_fold) + '.h5')
-        if num_fold <= 2:
-            if not os.path.isfile(kfold_weights_path) or restore_from_last_checkpoint == 0:
-                for epoch in range(nb_epoch):
-                    print ('Epoch {} of {}'.format(epoch, nb_epoch))
-                    epoch_list = train_index
-                    random.shuffle(epoch_list)
-                    items_done = 0
+        if not os.path.isfile(kfold_weights_path) or restore_from_last_checkpoint == 0:
 
-                    nb_batches = math.ceil(len(y_train_global)/float(batch_size))
-                    bar = progressbar.ProgressBar(maxval=nb_batches, \
+            for epoch in range(nb_epoch):
+                print ('Epoch {} of {}'.format(epoch, nb_epoch))
+                epoch_list = train_index
+                random.shuffle(epoch_list)
+                items_done = 0
+
+                nb_batches = math.ceil(len(y_train_global)/float(batch_size))
+                bar = progressbar.ProgressBar(maxval=nb_batches, \
                                               widgets=[progressbar.Bar('=', '[', ']'), ' ', progressbar.Percentage()])
-                    bar.start()
-                    count = 0
+                bar.start()
+                count = 0
 
-                    while items_done < len(y_train_global):
-                        print('Batch {} of {}'.format(count, nb_batches))
-                        if (len(y_train_global) - items_done) < batch_size:
-                            batch_list = epoch_list[items_done:]
-                            items_done = len(y_train_global)
-                        else:
-                            batch_list = epoch_list[items_done:items_done+batch_size]
-                            items_done += batch_size
+                while items_done < len(y_train_global):
+                    print('Batch {} of {}'.format(count, nb_batches))
+                    if (len(y_train_global) - items_done) < batch_size:
+                        batch_list = epoch_list[items_done:]
+                        items_done = len(y_train_global)
+                    else:
+                        batch_list = epoch_list[items_done:items_done+batch_size]
+                        items_done += batch_size
 
-                        x_train, y_train = load_batch(img_rows, img_cols, color_type_global, batch_list, train_target,
+                    x_train, y_train = load_batch(img_rows, img_cols, color_type_global, batch_list, train_target,
                                                   train_id)
 
-                        model.fit(x_train, y_train, 16, 1, 1)
-                        bar.update(count + 1)
-                        count += 1
+                    model.fit(x_train, y_train, 16, 2, 1)
+                    bar.update(count + 1)
+                    count += 1
 
-                    predictions_valid = model.predict(x_valid, batch_size=16, verbose=1)
-                    score = log_loss(y_valid, predictions_valid)
-                    print('Score log_loss: ', score)
-                    sum_score += score * len(test_index)
+                predictions_valid = model.predict(x_valid, batch_size=16, verbose=1)
+                score = log_loss(y_valid, predictions_valid)
+                print('Score log_loss: ', score)
+                sum_score += score * len(test_index)
 
-                    file_name = './pretrained/weight' + str(num_fold) + '.h5'
-                    model.save_weights(filepath=file_name, overwrite=True)
+                score_diff = score - prev_score
+                if score_diff > 0:
+                    patience_count += 1
 
-                    score_diff = score - prev_score
-                    prev_score = score
-                    if score_diff > 0:
-                        patience_count += 1
-
-                    if patience_count > patience_factor:
-                        break
+                if patience_count > patience_factor:
+                    break
 
 
-            elif os.path.isfile(kfold_weights_path):
-                model.load_weights(kfold_weights_path)
+        elif os.path.isfile(kfold_weights_path):
+            model.load_weights(kfold_weights_path)
 
         if num_fold==13:
-            model.save_weights(filepath='./pretrained/weight13.h5', overwrite=True)
+            model.save_weights(filepath='./pretrained/weight.h5', overwrite=True)
 
     print(
     'Final log_loss: {}, rows: {} cols: {} nfolds: {} epoch: {}'.format(score, img_rows, img_cols, nfolds, nb_epoch))
-
+    info_string = 'loss_' + str(score) \
+                  + '_clr_' + str(color_type_global) \
+                  + '_bat_sz' + str(batch_size) \
+                  + '_r_' + str(img_rows) \
+                  + '_c_' + str(img_cols) \
+                  + '_folds_' + str(nfolds) \
+                  + '_ep_' + str(nb_epoch)
     '''
 
     test_items_done = 0
@@ -683,7 +684,7 @@ def run_cross_validation(nfolds=10):
     len_test_items = len(test_id)
     nb_test_batches = len_test_items/test_batch_size
     test_count = 0
-    yfull_test = np.empty((0, 10))
+    yfull_test = []
 
     while test_items_done < len_test_items:
         print('Batch {} of {}'.format(test_count+1, nb_test_batches))
@@ -696,9 +697,8 @@ def run_cross_validation(nfolds=10):
 
         x_test = read_and_normalize_test_data(img_rows, img_cols, test_batch_list, color_type_global)
 
-        test_prediction = model.predict(x_test, batch_size=64, verbose=1)
-        yfull_test = np.append(yfull_test, test_prediction, axis=0)
-        print yfull_test.shape
+        test_prediction = model.predict(x_test, batch_size=16, verbose=1)
+        yfull_test.append(test_prediction)
         test_count += 1
 
     info_string = 'loss_' + 'to_do' \
@@ -710,7 +710,7 @@ def run_cross_validation(nfolds=10):
                   + '_ep_' + str(nb_epoch)
 
     create_submission(yfull_test, test_id, info_string)
-    '''
+
 
 def run_single():
     # input image dimensions
