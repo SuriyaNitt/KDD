@@ -354,7 +354,7 @@ def load_partial_weights(model, file_path):
             print k
             layer_count += 1
 
-            if layer_count > (len(flattened_layers) -2):
+            if layer_count > (len(flattened_layers)):
                 continue
             g = f[name]
             weight_names = [n.decode('utf8') for n in g.attrs['weight_names']]
@@ -408,21 +408,38 @@ def load_partial_weights(model, file_path):
 
 def create_model_v1(img_rows, img_cols, color_type=1):
     model = Sequential()
-    model.add(Convolution2D(32, 3, 3, border_mode='same', init='he_normal',
+    model.add(Convolution2D(32, 3, 3, border_mode='same', init='he_normal', activation='relu',
                             input_shape=(color_type, img_rows, img_cols)))
     model.add(MaxPooling2D(pool_size=(2, 2)))
-    model.add(Dropout(0.5))
+    model.add(Dropout(0.1))
 
-    model.add(Convolution2D(64, 3, 3, border_mode='same', init='he_normal'))
+    model.add(Convolution2D(64, 3, 3, border_mode='same', init='he_normal', activation='relu'))
     model.add(MaxPooling2D(pool_size=(2, 2)))
-    model.add(Dropout(0.5))
+    model.add(Dropout(0.2))
 
-    model.add(Convolution2D(128, 3, 3, border_mode='same', init='he_normal'))
-    model.add(MaxPooling2D(pool_size=(8, 8)))
-    model.add(Dropout(0.5))
+    model.add(Convolution2D(128, 3, 3, border_mode='same', init='he_normal', activation='relu'))
+    model.add(MaxPooling2D(pool_size=(2, 2)))
+    model.add(Dropout(0.2))
 
+    model.add(Convolution2D(256, 3, 3, border_mode='same', init='he_normal', activation='relu'))
+    model.add(MaxPooling2D(pool_size=(2, 2)))
+    model.add(Dropout(0.2))
+    
+    model.add(Convolution2D(512, 3, 3, border_mode='same', init='he_normal', activation='relu'))
+    model.add(MaxPooling2D(pool_size=(2, 2)))
+    model.add(Dropout(0.2))
+    
     model.add(Flatten())
-    model.add(Dense(10))
+    
+    model.add(Dense(1024, W_regularizer=l2(1e-3)))
+    model.add(Activation('relu'))
+    model.add(Dropout(0.5))
+
+    model.add(Dense(256, W_regularizer=l2(1e-1)))
+    model.add(Activation('relu'))
+    model.add(Dropout(0.2))
+    
+    model.add(Dense(10, W_regularizer=l2(1e-0)))
     model.add(Activation('softmax'))
 
     model.compile(Adam(lr=1e-3), loss='categorical_crossentropy')
@@ -557,10 +574,10 @@ def vgg_std16_model(img_rows, img_cols, color_type=1):
     # Learning rate is changed to 0.001
 
     #model.load_weights('/home/suriya/Documents/Kaggle/KDD/Distracted_Driver/code/pretrained/weight.h5')
-    load_partial_weights(model,
-                         '/home/suriya/Documents/Kaggle/KDD/Distracted_Driver/code/pretrained/weight_first_try.h5')
     #load_partial_weights(model,
-    #                     '/home/suriya/Documents/Kaggle/KDD/Distracted_Driver/code/pretrained/weight_check.h5')
+    #                     '/home/suriya/Documents/Kaggle/KDD/Distracted_Driver/code/pretrained/weight_first_try.h5')
+    load_partial_weights(model,
+                         '/home/suriya/Documents/Kaggle/KDD/Distracted_Driver/code/pretrained/weight13.h5')
     model.layers.pop()
 
     sgd = SGD(lr=1e-3, decay=1e-6, momentum=0.9, nesterov=True)
@@ -577,11 +594,11 @@ def get_validation_predictions(train_data, predictions_valid):
 
 def run_cross_validation(nfolds=10):
     # input image dimensions
-    img_rows, img_cols = 224, 224
+    img_rows, img_cols = 64, 64 #224, 224
     # color type: 1 - grey, 3 - rgb
     color_type_global = 3
     batch_size = 3200
-    nb_epoch = 2
+    nb_epoch = 7
     random_state = 51
     restore_from_last_checkpoint = 0
     model_version = 1
@@ -591,12 +608,8 @@ def run_cross_validation(nfolds=10):
                                                                                       color_type_global)
     test_id = load_test(img_rows, img_cols, color_type_global)
 
+    # Model Initialization
     model = Sequential()
-    if model_version == 1:
-        #model = create_model_v1(img_rows, img_cols, color_type_global)
-        model = vgg_std16_model(img_rows, img_cols, color_type_global)
-    elif model_version == 2:
-        model = create_model_v2(img_rows, img_cols, color_type_global)
 
     kf = KFold(len(unique_drivers), n_folds=nfolds, shuffle=True, random_state=random_state)
 
@@ -604,6 +617,17 @@ def run_cross_validation(nfolds=10):
     sum_score = 0
 
     for train_drivers, test_drivers in kf:
+        
+        '''
+        Loading the model
+        '''
+        
+        if model_version == 1:
+            model = create_model_v1(img_rows, img_cols, color_type_global)
+            #model = vgg_std16_model(img_rows, img_cols, color_type_global)
+        elif model_version == 2:
+            model = create_model_v2(img_rows, img_cols, color_type_global)
+            
         prev_score = 10000
         patience_count = 0
         unique_list_train = [unique_drivers[i] for i in train_drivers]
@@ -620,7 +644,7 @@ def run_cross_validation(nfolds=10):
         print('Test drivers: ', unique_list_valid)
 
         kfold_weights_path = os.path.join('cache', 'weights_kfold_' + str(num_fold) + '.h5')
-        if num_fold <= 2:
+        if num_fold <= 13:
             if not os.path.isfile(kfold_weights_path) or restore_from_last_checkpoint == 0:
                 for epoch in range(nb_epoch):
                     print ('Epoch {} of {}'.format(epoch, nb_epoch))
@@ -655,7 +679,7 @@ def run_cross_validation(nfolds=10):
                     print('Score log_loss: ', score)
                     sum_score += score * len(test_index)
 
-                    file_name = './pretrained/weight' + str(num_fold) + '.h5'
+                    file_name = './model_v1/weight' + str(num_fold) + '.h5'
                     model.save_weights(filepath=file_name, overwrite=True)
 
                     score_diff = score - prev_score
@@ -669,9 +693,6 @@ def run_cross_validation(nfolds=10):
 
             elif os.path.isfile(kfold_weights_path):
                 model.load_weights(kfold_weights_path)
-
-        if num_fold==13:
-            model.save_weights(filepath='./pretrained/weight13.h5', overwrite=True)
 
     print(
     'Final log_loss: {}, rows: {} cols: {} nfolds: {} epoch: {}'.format(score, img_rows, img_cols, nfolds, nb_epoch))
