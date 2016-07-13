@@ -76,6 +76,30 @@ def get_im_cv2_mod(path, img_rows, img_cols, color_type=1):
     resized = cv2.resize(img, (img_cols, img_rows), cv2.INTER_LINEAR)
     return resized
 
+def get_im_cv2_mod2(path, img_rows, img_cols, color_type=1):
+    # Load as grayscale
+    if color_type == 1:
+        img = cv2.imread(path, 0)
+    else:
+        img = cv2.imread(path)
+    # Reduce size
+    rotate = random.uniform(-5, 5)
+    M = cv2.getRotationMatrix2D((img.shape[1] / 2, img.shape[0] / 2), rotate, 1)
+    img = cv2.warpAffine(img, M, (img.shape[1], img.shape[0]))
+    resized = cv2.resize(img, (img_cols, img_rows), cv2.INTER_LINEAR)
+    return resized
+
+def get_im_cv2_flipped(path, img_rows, img_cols, color_type=1):
+    # Load as grayscale
+    if color_type == 1:
+        img = cv2.imread(path, 0)
+    else:
+        img = cv2.imread(path)
+    # Reduce size
+    img = cv2.flip(img, 1)
+    resized = cv2.resize(img, (img_cols, img_rows), cv2.INTER_LINEAR)
+    return resized
+
 
 def get_driver_data():
     dr = dict()
@@ -233,7 +257,7 @@ def read_and_normalize_test_data(img_rows, img_cols, batch_list, color_type=1):
 
     for i in batch_list:
         fl = os.path.join('..', 'input', 'test', i)
-        test_data.append(read_and_normalize_image(img_rows, img_cols, color_type,fl))
+        test_data.append(read_and_normalize_image_affine(img_rows, img_cols, color_type,fl))
         bar.update(count + 1)
         count += 1
 
@@ -243,9 +267,42 @@ def read_and_normalize_test_data(img_rows, img_cols, batch_list, color_type=1):
 
     return test_data
 
+def read_and_normalize_image_flipped(img_rows, img_cols, color_type=1, file_name=''):
+    img = get_im_cv2_flipped(file_name, img_rows, img_cols, color_type)
+    img = np.array(img, dtype=np.uint8)
+    if color_type == 1:
+        img = img.reshape(1, img_rows, img_cols)
+    else:
+        img = img.transpose((2, 0, 1))
+    img = img.astype('float32')
+    img /= 255
+    return img
 
-def read_and_normalize_image(img_rows, img_cols, color_type=1, file_name=''):
+def read_and_normalize_image_affine(img_rows, img_cols, color_type=1, file_name=''):
     img = get_im_cv2_mod(file_name, img_rows, img_cols, color_type)
+    img = np.array(img, dtype=np.uint8)
+    if color_type == 1:
+        img = img.reshape(1, img_rows, img_cols)
+    else:
+        img = img.transpose((2, 0, 1))
+    img = img.astype('float32')
+    img /= 255
+    return img
+    
+def read_and_normalize_image(img_rows, img_cols, color_type=1, file_name=''):
+    img = get_im_cv2(file_name, img_rows, img_cols, color_type)
+    img = np.array(img, dtype=np.uint8)
+    if color_type == 1:
+        img = img.reshape(1, img_rows, img_cols)
+    else:
+        img = img.transpose((2, 0, 1))
+    img = img.astype('float32')
+    img /= 255
+    return img
+
+
+def read_and_normalize_image_affine2(img_rows, img_cols, color_type=1, file_name=''):
+    img = get_im_cv2_mod2(file_name, img_rows, img_cols, color_type)
     img = np.array(img, dtype=np.uint8)
     if color_type == 1:
         img = img.reshape(1, img_rows, img_cols)
@@ -295,14 +352,23 @@ def load_batch(img_rows, img_cols, color_type, batch_list, train_target, train_i
     bar = progressbar.ProgressBar(maxval=len(batch_list), \
                                   widgets=[progressbar.Bar('=', '[', ']'), ' ', progressbar.Percentage()])
     bar.start()
+    
+    augment_data = 1    
     print('Loading mini batch')
     data = []
     target = []
     count = 0
     for i in batch_list:
         fl = os.path.join('..', 'input', 'train', 'c{0}'.format(str(train_target[i].argmax())), train_id[i])
-        data.append(read_and_normalize_image(img_rows, img_cols, color_type, fl))
+        data.append(read_and_normalize_image_affine(img_rows, img_cols, color_type, fl))
         target.append(train_target[i])
+        if augment_data == 1:
+            data.append(read_and_normalize_image(img_rows, img_cols, color_type, fl))
+            target.append(train_target[i])
+            data.append(read_and_normalize_image_affine2(img_rows, img_cols, color_type, fl))
+            target.append(train_target[i])
+            data.append(read_and_normalize_image_flipped(img_rows, img_cols, color_type, fl))
+            target.append(train_target[i])
         bar.update(count + 1)
         count += 1
     bar.finish()
@@ -418,27 +484,31 @@ def create_model_v1(img_rows, img_cols, color_type=1):
     model.add(Dropout(0.2))
 
     model.add(Convolution2D(128, 3, 3, border_mode='same', init='he_normal', activation='relu'))
-    model.add(MaxPooling2D(pool_size=(2, 2)))
-    model.add(Dropout(0.2))
+    model.add(MaxPooling2D(pool_size=(8, 8)))
+    model.add(Dropout(0.8))
 
-    model.add(Convolution2D(256, 3, 3, border_mode='same', init='he_normal', activation='relu'))
-    model.add(MaxPooling2D(pool_size=(2, 2)))
-    model.add(Dropout(0.2))
+    #model.add(Convolution2D(256, 3, 3, border_mode='valid', init='he_normal', activation='relu'))
+    #model.add(MaxPooling2D(pool_size=(2, 2)))
+    #model.add(Dropout(0.6))
     
-    model.add(Convolution2D(512, 3, 3, border_mode='same', init='he_normal', activation='relu'))
-    model.add(MaxPooling2D(pool_size=(2, 2)))
-    model.add(Dropout(0.2))
+    #model.add(Convolution2D(512, 3, 3, border_mode='same', init='he_normal', activation='relu'))
+    #model.add(MaxPooling2D(pool_size=(5, 5)))
+    #model.add(Convolution2D(128, 1, 1, border_mode='same', init='he_normal', activation='relu'))
+    #model.add(Dropout(0.2))
     
     model.add(Flatten())
     
-    model.add(Dense(1024, W_regularizer=l2(1e-3)))
-    model.add(Activation('relu'))
-    model.add(Dropout(0.5))
+    #model.add(Dense(512, W_regularizer=l2(1e-6)))
+    #model.add(Activation('relu'))
+    #model.add(Dropout(0.4))
 
-    model.add(Dense(256, W_regularizer=l2(1e-1)))
+    model.add(Dense(128, W_regularizer=l2(1e-4)))
     model.add(Activation('relu'))
-    model.add(Dropout(0.2))
-    
+    #model.add(Dropout(0.5))    
+
+    model.add(Dense(32, W_regularizer=l2(1e-4)))
+    model.add(Activation('relu'))
+
     model.add(Dense(10, W_regularizer=l2(1e-0)))
     model.add(Activation('softmax'))
 
@@ -597,12 +667,12 @@ def run_cross_validation(nfolds=10):
     img_rows, img_cols = 64, 64 #224, 224
     # color type: 1 - grey, 3 - rgb
     color_type_global = 3
-    batch_size = 3200
-    nb_epoch = 7
+    batch_size = 3200 #800
+    nb_epoch = 14
     random_state = 51
     restore_from_last_checkpoint = 0
     model_version = 1
-    patience_factor = 1
+    patience_factor = 5
 
     train_target, train_id, driver_id, unique_drivers = read_and_normalize_train_data(img_rows, img_cols,
                                                                                       color_type_global)
@@ -616,11 +686,16 @@ def run_cross_validation(nfolds=10):
     num_fold = 0
     sum_score = 0
 
+    now = datetime.datetime.now()
+    history_file_name = '../fold_loss/hist' + \
+                        str(now.strftime("%Y-%m-%d-%H-%M"))
+                        
+    history_file = open(history_file_name, 'w')
+    history_file.write('Fold, Loss\n')
+
     for train_drivers, test_drivers in kf:
         
-        '''
-        Loading the model
-        '''
+        #Loading the model
         
         if model_version == 1:
             model = create_model_v1(img_rows, img_cols, color_type_global)
@@ -629,6 +704,7 @@ def run_cross_validation(nfolds=10):
             model = create_model_v2(img_rows, img_cols, color_type_global)
             
         prev_score = 10000
+        min_score = 10000
         patience_count = 0
         unique_list_train = [unique_drivers[i] for i in train_drivers]
         y_train_global, train_index = copy_selected_drivers(train_target, driver_id, unique_list_train)
@@ -678,9 +754,12 @@ def run_cross_validation(nfolds=10):
                     score = log_loss(y_valid, predictions_valid)
                     print('Score log_loss: ', score)
                     sum_score += score * len(test_index)
-
-                    file_name = './model_v1/weight' + str(num_fold) + '.h5'
-                    model.save_weights(filepath=file_name, overwrite=True)
+                  
+                    if min_score > score:
+                        min_score = score
+                        file_name = './model_v1/weight' + str(num_fold) + '.h5'
+                        model.save_weights(filepath=file_name, overwrite=True)
+                        history_file.write(str(num_fold) + ',' + str(score))
 
                     score_diff = score - prev_score
                     prev_score = score
@@ -688,7 +767,11 @@ def run_cross_validation(nfolds=10):
                         patience_count += 1
 
                     if patience_count > patience_factor:
+                        history_file.write(str(num_fold) + ',' + str(score))
                         break
+                     
+                    if epoch == (nb_epoch-1):
+                        history_file.write(str(num_fold) + ',' + str(score))
 
 
             elif os.path.isfile(kfold_weights_path):
@@ -699,12 +782,24 @@ def run_cross_validation(nfolds=10):
 
     '''
 
+
+    #Loading the model
+        
+    if model_version == 1:
+        model = create_model_v1(img_rows, img_cols, color_type_global)
+        #model = vgg_std16_model(img_rows, img_cols, color_type_global)
+    elif model_version == 2:
+        model = create_model_v2(img_rows, img_cols, color_type_global)
+
+    ensemble_list = [1, 5, 7, 8, 9, 13, 2, 4, 6, 10]
+    test_prediction_kfolds = []
+    
     test_items_done = 0
-    test_batch_size = 3200
+    test_batch_size = 40000 #3200
     len_test_items = len(test_id)
     nb_test_batches = len_test_items/test_batch_size
     test_count = 0
-    yfull_test = np.empty((0, 10))
+    yfull_test = [np.empty((0, 10)) for model_id in range(len(ensemble_list))] 
 
     while test_items_done < len_test_items:
         print('Batch {} of {}'.format(test_count+1, nb_test_batches))
@@ -715,13 +810,25 @@ def run_cross_validation(nfolds=10):
             test_batch_list = test_id[test_items_done:test_items_done+test_batch_size]
             test_items_done += test_batch_size
 
+        # Load the test data
         x_test = read_and_normalize_test_data(img_rows, img_cols, test_batch_list, color_type_global)
 
-        test_prediction = model.predict(x_test, batch_size=64, verbose=1)
-        yfull_test = np.append(yfull_test, test_prediction, axis=0)
-        print yfull_test.shape
+        model_count = 0
+        for model_id in ensemble_list:
+            print('Model Count: {}, Model_id: {}'.format(model_count, model_id))
+            model.load_weights('/home/suriya/Documents/Kaggle/KDD/Distracted_Driver/code/model_v1/weight' + str(model_id) + '.h5')
+            test_prediction = model.predict(x_test, batch_size=64, verbose=1)
+            yfull_test[model_count] = np.append(yfull_test[model_count], test_prediction, axis=0)
+            print yfull_test[model_count].shape
+            model_count += 1
+
         test_count += 1
 
+    for i in range(len(ensemble_list)):
+        test_prediction_kfolds.append(yfull_test[i])
+ 
+    test_res = merge_several_folds_mean(test_prediction_kfolds, len(ensemble_list))
+   
     info_string = 'loss_' + 'to_do' \
                   + '_clr_' + str(color_type_global) \
                   + '_bat_sz' + str(batch_size) \
@@ -730,8 +837,9 @@ def run_cross_validation(nfolds=10):
                   + '_folds_' + str(nfolds) \
                   + '_ep_' + str(nb_epoch)
 
-    create_submission(yfull_test, test_id, info_string)
-    '''
+    create_submission(test_res, test_id, info_string)
+
+    '''    
 
 def run_single():
     # input image dimensions
